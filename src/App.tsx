@@ -14,6 +14,26 @@ import IntroLoader from '@/components/intro-loader';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
+const drawCover = (ctx: CanvasRenderingContext2D, img: HTMLImageElement, canvasWidth: number, canvasHeight: number) => {
+  const imageRatio = img.width / img.height;
+  const canvasRatio = canvasWidth / canvasHeight;
+  let renderWidth, renderHeight, x, y;
+
+  if (canvasRatio > imageRatio) {
+    renderWidth = canvasWidth;
+    renderHeight = canvasWidth / imageRatio;
+    x = 0;
+    y = (canvasHeight - renderHeight) / 2;
+  } else {
+    renderWidth = canvasHeight * imageRatio;
+    renderHeight = canvasHeight;
+    x = (canvasWidth - renderWidth) / 2;
+    y = 0;
+  }
+
+  ctx.drawImage(img, x, y, renderWidth, renderHeight);
+};
+
 // Premium distributed stars coordinate dataset for full-section deep celestial density
 const STARS_DATA = [
   { top: "1.5%", left: "4%", size: "h-3.5 w-3.5", color: "text-yellow-400 fill-yellow-400", opacity: "opacity-60", duration: "3s" },
@@ -138,6 +158,145 @@ function Card3DScroll({
     </div>
   );
 }
+
+const FinalAnimationSection = () => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const textRef = useRef<HTMLDivElement>(null);
+  const targetFrameRef = useRef<number>(1);
+  const currentFrameRef = useRef<number>(1);
+  const lastDrawnFrameRef = useRef<number>(-1);
+  const imagesRef = useRef<HTMLImageElement[]>([]);
+
+  useEffect(() => {
+    const frameCount = 26;
+    let loadedCount = 0;
+    
+    const initialDraw = () => {
+      const canvas = canvasRef.current;
+      const ctx = canvas?.getContext('2d');
+      if (canvas && ctx && imagesRef.current[0] && imagesRef.current[0].complete) {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        drawCover(ctx, imagesRef.current[0], canvas.width, canvas.height);
+      }
+    };
+
+    for (let i = 1; i <= frameCount; i++) {
+      const img = new Image();
+      img.src = `/img-2/ezgif-frame-${i.toString().padStart(3, '0')}.png`;
+      img.onload = () => {
+        loadedCount++;
+        if (loadedCount === 1) {
+          initialDraw();
+        }
+      };
+      imagesRef.current.push(img);
+    }
+    
+    const handleResize = () => {
+      const canvas = canvasRef.current;
+      if (canvas) {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const index = Math.min(Math.max(Math.round(currentFrameRef.current) - 1, 0), 25);
+        const img = imagesRef.current[index];
+        if (img && img.complete) {
+          const ctx = canvas.getContext('2d');
+          if (ctx) drawCover(ctx, img, canvas.width, canvas.height);
+        }
+      }
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const container = containerRef.current;
+      if (!container) return;
+
+      const rect = container.getBoundingClientRect();
+      const containerTop = rect.top;
+      const containerHeight = rect.height;
+      const windowHeight = window.innerHeight;
+      
+      const scrollSpace = containerHeight - windowHeight;
+      const scrolled = -containerTop;
+      
+      const progress = Math.min(Math.max(scrolled / scrollSpace, 0), 1);
+      
+      targetFrameRef.current = 1 + progress * 25;
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    
+    let rAFId: number;
+    const lerp = (start: number, end: number, amt: number) => {
+      return (1 - amt) * start + amt * end;
+    };
+
+    const updateFrame = () => {
+      const diff = targetFrameRef.current - currentFrameRef.current;
+      if (Math.abs(diff) > 0.01) {
+        currentFrameRef.current = lerp(currentFrameRef.current, targetFrameRef.current, 0.08);
+        const frameIndex = Math.min(Math.max(Math.round(currentFrameRef.current) - 1, 0), 25);
+        if (frameIndex !== lastDrawnFrameRef.current) {
+          const img = imagesRef.current[frameIndex];
+          const canvas = canvasRef.current;
+          const ctx = canvas?.getContext('2d');
+          
+          if (canvas && ctx && img && img.complete && img.width > 0) {
+            drawCover(ctx, img, canvas.width, canvas.height);
+            lastDrawnFrameRef.current = frameIndex;
+          }
+        }
+        
+        if (textRef.current) {
+          const tOpacity = Math.min(Math.max((currentFrameRef.current - 18) / 4, 0), 1);
+          textRef.current.style.opacity = tOpacity.toString();
+          const tY = 50 * (1 - tOpacity);
+          textRef.current.style.transform = `translateY(${tY}px)`;
+        }
+      }
+
+      rAFId = requestAnimationFrame(updateFrame);
+    };
+
+    rAFId = requestAnimationFrame(updateFrame);
+    handleScroll();
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      cancelAnimationFrame(rAFId);
+    };
+  }, []);
+
+  return (
+    <section ref={containerRef} className="relative w-full h-[300vh] bg-[#020714] z-40">
+      <div className="sticky top-0 w-full h-screen overflow-hidden flex items-center justify-center">
+        <canvas
+          ref={canvasRef}
+          className="w-full h-full object-cover opacity-90 mix-blend-lighten absolute inset-0"
+        />
+        {/* Overlay gradient to match theme */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#020b1e] via-transparent to-[#020b1e]/20 pointer-events-none" />
+        
+        <div 
+          ref={textRef}
+          style={{ opacity: 0, transform: 'translateY(50px)' }}
+          className="absolute z-10 text-center px-4 max-w-5xl mx-auto flex flex-col items-center justify-center pointer-events-none transition-none"
+        >
+          <h2 className="font-display font-normal nextjs-text-hover text-4xl sm:text-6xl md:text-[80px] leading-[1.05] tracking-wide text-white uppercase drop-shadow-[0_10px_30px_rgba(2,11,30,0.8)]">
+            Who will hold <br />
+            <span className="text-yellow-400">Ballon d'Or 2026?</span>
+          </h2>
+        </div>
+      </div>
+    </section>
+  );
+};
 
 export default function App() {
   const [showLoader, setShowLoader] = useState(true);
@@ -289,25 +448,65 @@ export default function App() {
     };
   }, [showLoader]);
 
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const targetTimeRef = useRef<number>(0);
-  const currentTimeRef = useRef<number>(0);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const targetFrameRef = useRef<number>(1);
+  const currentFrameRef = useRef<number>(1);
+  const lastDrawnFrameRef = useRef<number>(-1);
+  const imagesRef = useRef<HTMLImageElement[]>([]);
 
-  // Monitor scroll progress of the first section to drive the video scrub
+  // Preload frames and handle resize
   useEffect(() => {
-    const video = videoRef.current;
-    if (video) {
-      video.pause();
-    }
+    const frameCount = 40;
+    let loadedCount = 0;
+    
+    const initialDraw = () => {
+      const canvas = canvasRef.current;
+      const ctx = canvas?.getContext('2d');
+      if (canvas && ctx && imagesRef.current[0] && imagesRef.current[0].complete) {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        drawCover(ctx, imagesRef.current[0], canvas.width, canvas.height);
+      }
+    };
 
+    for (let i = 1; i <= frameCount; i++) {
+      const img = new Image();
+      img.src = `/hero-img/ezgif-frame-${i.toString().padStart(3, '0')}.png`;
+      img.onload = () => {
+        loadedCount++;
+        if (loadedCount === 1) {
+          initialDraw();
+        }
+      };
+      imagesRef.current.push(img);
+    }
+    
+    const handleResize = () => {
+      const canvas = canvasRef.current;
+      if (canvas) {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const index = Math.min(Math.max(Math.round(currentFrameRef.current) - 1, 0), 39);
+        const img = imagesRef.current[index];
+        if (img && img.complete) {
+          const ctx = canvas.getContext('2d');
+          if (ctx) drawCover(ctx, img, canvas.width, canvas.height);
+        }
+      }
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Monitor scroll progress of the first section to drive the frame scrub
+  useEffect(() => {
     const handleScroll = () => {
       const scrollTop = window.scrollY;
       
-      // Calculate scroll progress based on the 350vh scroll space of the first section
       const firstSectionScrollHeight = window.innerHeight * 3.5; 
       const progress = Math.min(Math.max(scrollTop / firstSectionScrollHeight, 0), 1);
 
-      // Page-wide scroll progress calculation
       const docHeight = document.documentElement.scrollHeight - window.innerHeight;
       const pageProgress = docHeight > 0 ? scrollTop / docHeight : 0;
       
@@ -316,34 +515,38 @@ export default function App() {
         scrollProgressLine.style.transform = `scaleX(${Math.min(Math.max(pageProgress, 0), 1)})`;
       }
 
-      if (video && video.duration && !isNaN(video.duration)) {
-        targetTimeRef.current = progress * video.duration;
-      }
+      // Frames 1 to 40 map to progress 0 to 1
+      targetFrameRef.current = 1 + progress * 39;
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     
-    // Smooth frame updater loop with HTML5 seek protection
     let rAFId: number;
     const lerp = (start: number, end: number, amt: number) => {
       return (1 - amt) * start + amt * end;
     };
 
-    const updatePlayhead = () => {
-      const vid = videoRef.current;
-      if (vid && vid.readyState >= 1 && !vid.seeking && vid.duration && !isNaN(vid.duration)) {
-        const diff = targetTimeRef.current - currentTimeRef.current;
-        if (Math.abs(diff) > 0.001) {
-          currentTimeRef.current = lerp(currentTimeRef.current, targetTimeRef.current, 0.08);
-          currentTimeRef.current = Math.min(Math.max(currentTimeRef.current, 0), vid.duration);
-          vid.currentTime = currentTimeRef.current;
+    const updateFrame = () => {
+      const diff = targetFrameRef.current - currentFrameRef.current;
+      if (Math.abs(diff) > 0.01) {
+        currentFrameRef.current = lerp(currentFrameRef.current, targetFrameRef.current, 0.08);
+        const frameIndex = Math.min(Math.max(Math.round(currentFrameRef.current) - 1, 0), 39);
+        if (frameIndex !== lastDrawnFrameRef.current) {
+          const img = imagesRef.current[frameIndex];
+          const canvas = canvasRef.current;
+          const ctx = canvas?.getContext('2d');
+          
+          if (canvas && ctx && img && img.complete && img.width > 0) {
+            drawCover(ctx, img, canvas.width, canvas.height);
+            lastDrawnFrameRef.current = frameIndex;
+          }
         }
       }
 
-      rAFId = requestAnimationFrame(updatePlayhead);
+      rAFId = requestAnimationFrame(updateFrame);
     };
 
-    rAFId = requestAnimationFrame(updatePlayhead);
+    rAFId = requestAnimationFrame(updateFrame);
     handleScroll();
 
     return () => {
@@ -351,21 +554,6 @@ export default function App() {
       cancelAnimationFrame(rAFId);
     };
   }, []);
-
-  // Set initial frame when video metadata is ready
-  const handleLoadedMetadata = () => {
-    const video = videoRef.current;
-    if (!video) return;
-    
-    const scrollTop = window.scrollY;
-    const firstSectionScrollHeight = window.innerHeight * 3.5;
-    if (video.duration && !isNaN(video.duration)) {
-      const progress = Math.min(Math.max(scrollTop / firstSectionScrollHeight, 0), 1);
-      targetTimeRef.current = progress * video.duration;
-      currentTimeRef.current = targetTimeRef.current;
-      video.currentTime = targetTimeRef.current;
-    }
-  };
 
   return (
     <div className="bg-[#020b1e] text-[#f1f5f9] flex flex-col font-sans relative select-none selection:bg-yellow-400 selection:text-blue-950 min-h-screen">
@@ -380,16 +568,11 @@ export default function App() {
       <div className="fixed bottom-[20vh] right-[5%] w-[50vw] h-[50vw] max-w-[600px] bg-blue-500/10 rounded-full blur-[160px] pointer-events-none z-0" />
       <div className="fixed top-[60vh] right-[10%] w-[35vw] h-[35vw] max-w-[400px] bg-yellow-300/5 rounded-full blur-[125px] pointer-events-none z-0" />
 
-      {/* Scroll-scrubbed Interactive Background Video */}
+      {/* Scroll-scrubbed Interactive Background Sequence */}
       <div className="fixed inset-0 w-full h-full pointer-events-none z-0 overflow-hidden bg-[#020817]">
-        <video
-          ref={videoRef}
-          src="https://res.cloudinary.com/dkpv0eax8/video/upload/v1781370413/FIFA_World_Cup_trophy_flags_202606130948_x1imkg.mp4"
-          muted
-          playsInline
-          preload="auto"
-          onLoadedMetadata={handleLoadedMetadata}
-          className="w-full h-full object-cover opacity-80 mix-blend-lighten"
+        <canvas
+          ref={canvasRef}
+          className="w-full h-full opacity-80 mix-blend-lighten"
         />
         {/* Premium Navy Contrast Mask */}
         <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-[#020b1e] via-[#020b1e]/60 to-transparent pointer-events-none" />
@@ -465,7 +648,7 @@ export default function App() {
             transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
             className="text-center mb-24 md:mb-32"
           >
-            <h2 className="gsap-fade-up-clip font-sans font-black text-4xl sm:text-5xl md:text-[60px] leading-none tracking-tighter text-white uppercase">
+            <h2 className="gsap-fade-up-clip font-display font-normal nextjs-text-hover text-4xl sm:text-5xl md:text-[60px] leading-none tracking-wide text-white uppercase">
               WHO WILL BE <span className="text-yellow-400">CHAMPION?</span>
             </h2>
             <p className="gsap-stagger-letters font-mono text-yellow-400/60 text-xs sm:text-sm tracking-[0.3em] uppercase mt-4">
@@ -482,7 +665,7 @@ export default function App() {
               initialY={80}
               viewportMargin="-100px"
               duration={1.2}
-              className="flex flex-col md:flex-row items-center justify-between gap-0 relative bg-[#040f2b]/95 backdrop-blur-md rounded-2xl p-6 border border-yellow-400/20 shadow-[0_30px_60px_rgba(2,11,30,0.7)] hover:border-yellow-400/60 hover:shadow-[0_45px_100px_rgba(234,179,8,0.25)] hover:scale-[1.015] transition-all duration-500 ease-out group cursor-pointer"
+              className="flex flex-col md:flex-row items-center justify-between gap-0 relative bg-[#040f2b]/95 backdrop-blur-md rounded-2xl nextjs-float p-6 border border-yellow-400/20 shadow-[0_30px_60px_rgba(2,11,30,0.7)] hover:border-yellow-400/60 hover:shadow-[0_45px_100px_rgba(234,179,8,0.25)] hover:scale-[1.015] transition-all duration-500 ease-out group cursor-pointer"
             >
               {/* Professional Country Flag Badge on Card Edge */}
               <div id="flag-ronaldo" className="absolute -top-3 -left-3 z-30 flex items-center gap-2 px-3.5 py-1.5 bg-[#030d26]/90 backdrop-blur-md rounded-full border border-yellow-400/40 shadow-[0_4px_16px_rgba(250,204,21,0.25)] hover:border-yellow-400/80 transition-all duration-300">
@@ -519,7 +702,7 @@ export default function App() {
                 </div>
    
                 {/* Huge typographic headline inside card */}
-                <h3 className="font-sans font-black text-2xl sm:text-3xl md:text-[32px] leading-[1.12] tracking-tight text-white uppercase mb-3">
+                <h3 className="font-display font-normal nextjs-text-hover text-2xl sm:text-3xl md:text-[32px] leading-[1.12] tracking-wide text-white uppercase mb-3">
                   Road to <br />
                   <span className="text-yellow-400 font-extrabold">The Finals.</span>
                 </h3>
@@ -547,7 +730,7 @@ export default function App() {
               initialY={120}
               viewportMargin="-80px"
               duration={1.4}
-              className="flex flex-col md:flex-row items-center justify-between gap-0 relative bg-[#040f2b]/95 backdrop-blur-md rounded-2xl p-6 border border-yellow-400/25 shadow-[-10px_-20px_50px_rgba(2,11,30,0.8),0_40px_80px_rgba(2,11,30,0.8)] hover:border-yellow-400/65 hover:shadow-[0_45px_100px_rgba(234,179,8,0.25)] hover:scale-[1.015] transition-all duration-500 ease-out group cursor-pointer"
+              className="flex flex-col md:flex-row items-center justify-between gap-0 relative bg-[#040f2b]/95 backdrop-blur-md rounded-2xl nextjs-float p-6 border border-yellow-400/25 shadow-[-10px_-20px_50px_rgba(2,11,30,0.8),0_40px_80px_rgba(2,11,30,0.8)] hover:border-yellow-400/65 hover:shadow-[0_45px_100px_rgba(234,179,8,0.25)] hover:scale-[1.015] transition-all duration-500 ease-out group cursor-pointer"
             >
               {/* Professional Country Flag Badge on Card Edge */}
               <div id="flag-messi" className="absolute -top-3 -left-3 z-30 flex items-center gap-2 px-3.5 py-1.5 bg-[#030d26]/90 backdrop-blur-md rounded-full border border-yellow-400/40 shadow-[0_4px_16px_rgba(250,204,21,0.25)] hover:border-yellow-400/80 transition-all duration-300">
@@ -584,7 +767,7 @@ export default function App() {
                 </div>
    
                 {/* Huge typographic headline inside card */}
-                <h3 className="font-sans font-black text-2xl sm:text-3xl md:text-[32px] leading-[1.12] tracking-tight text-white uppercase mb-3">
+                <h3 className="font-display font-normal nextjs-text-hover text-2xl sm:text-3xl md:text-[32px] leading-[1.12] tracking-wide text-white uppercase mb-3">
                   The Legacy <br />
                   <span className="text-yellow-400 font-extrabold">Continues.</span>
                 </h3>
@@ -612,7 +795,7 @@ export default function App() {
               initialY={156}
               viewportMargin="-60px"
               duration={1.5}
-              className="flex flex-col md:flex-row items-center justify-between gap-0 relative bg-[#040f2b]/95 backdrop-blur-md rounded-2xl p-6 border border-yellow-400/30 shadow-[-10px_-20px_50px_rgba(2,11,30,0.85),0_45px_90px_rgba(2,11,30,0.85)] hover:border-yellow-400/70 hover:shadow-[0_45px_100px_rgba(234,179,8,0.25)] hover:scale-[1.015] transition-all duration-500 ease-out group cursor-pointer"
+              className="flex flex-col md:flex-row items-center justify-between gap-0 relative bg-[#040f2b]/95 backdrop-blur-md rounded-2xl nextjs-float p-6 border border-yellow-400/30 shadow-[-10px_-20px_50px_rgba(2,11,30,0.85),0_45px_90px_rgba(2,11,30,0.85)] hover:border-yellow-400/70 hover:shadow-[0_45px_100px_rgba(234,179,8,0.25)] hover:scale-[1.015] transition-all duration-500 ease-out group cursor-pointer"
             >
               {/* Professional Country Flag Badge on Card Edge */}
               <div id="flag-mbappe" className="absolute -top-3 -left-3 z-30 flex items-center gap-2 px-3.5 py-1.5 bg-[#030d26]/90 backdrop-blur-md rounded-full border border-yellow-400/40 shadow-[0_4px_16px_rgba(250,204,21,0.25)] hover:border-yellow-400/80 transition-all duration-300">
@@ -649,7 +832,7 @@ export default function App() {
                 </div>
    
                 {/* Huge typographic headline inside card */}
-                <h3 className="font-sans font-black text-2xl sm:text-3xl md:text-[32px] leading-[1.12] tracking-tight text-white uppercase mb-3">
+                <h3 className="font-display font-normal nextjs-text-hover text-2xl sm:text-3xl md:text-[32px] leading-[1.12] tracking-wide text-white uppercase mb-3">
                   A New Era <br />
                   <span className="text-yellow-400 font-extrabold">Has Dawned.</span>
                 </h3>
@@ -677,7 +860,7 @@ export default function App() {
               initialY={190}
               viewportMargin="-40px"
               duration={1.6}
-              className="flex flex-col md:flex-row items-center justify-between gap-0 relative bg-[#040f2b]/95 backdrop-blur-md rounded-2xl p-6 border border-yellow-400/35 shadow-[-10px_-20px_50px_rgba(2,11,30,0.9),0_50px_100px_rgba(2,11,30,0.9)] hover:border-yellow-400/75 hover:shadow-[0_45px_100px_rgba(234,179,8,0.25)] hover:scale-[1.015] transition-all duration-500 ease-out group cursor-pointer"
+              className="flex flex-col md:flex-row items-center justify-between gap-0 relative bg-[#040f2b]/95 backdrop-blur-md rounded-2xl nextjs-float p-6 border border-yellow-400/35 shadow-[-10px_-20px_50px_rgba(2,11,30,0.9),0_50px_100px_rgba(2,11,30,0.9)] hover:border-yellow-400/75 hover:shadow-[0_45px_100px_rgba(234,179,8,0.25)] hover:scale-[1.015] transition-all duration-500 ease-out group cursor-pointer"
             >
               {/* Professional Country Flag Badge on Card Edge */}
               <div id="flag-neymar" className="absolute -top-3 -left-3 z-30 flex items-center gap-2 px-3.5 py-1.5 bg-[#030d26]/90 backdrop-blur-md rounded-full border border-yellow-400/40 shadow-[0_4px_16px_rgba(250,204,21,0.25)] hover:border-yellow-400/80 transition-all duration-300">
@@ -714,7 +897,7 @@ export default function App() {
                 </div>
    
                 {/* Huge typographic headline inside card */}
-                <h3 className="font-sans font-black text-2xl sm:text-3xl md:text-[32px] leading-[1.12] tracking-tight text-white uppercase mb-3">
+                <h3 className="font-display font-normal nextjs-text-hover text-2xl sm:text-3xl md:text-[32px] leading-[1.12] tracking-wide text-white uppercase mb-3">
                   Pure Samba <br />
                   <span className="text-yellow-400 font-extrabold">Magic.</span>
                 </h3>
@@ -742,7 +925,7 @@ export default function App() {
               initialY={224}
               viewportMargin="-20px"
               duration={1.7}
-              className="flex flex-col md:flex-row items-center justify-between gap-0 relative bg-[#040f2b]/100 backdrop-blur-md rounded-2xl p-6 border border-yellow-400/40 shadow-[-10px_-20px_50px_rgba(2,11,30,0.95),0_55px_110px_rgba(2,11,30,0.95)] hover:border-yellow-400/80 hover:shadow-[0_45px_100px_rgba(234,179,8,0.25)] hover:scale-[1.015] transition-all duration-500 ease-out group cursor-pointer"
+              className="flex flex-col md:flex-row items-center justify-between gap-0 relative bg-[#040f2b]/100 backdrop-blur-md rounded-2xl nextjs-float p-6 border border-yellow-400/40 shadow-[-10px_-20px_50px_rgba(2,11,30,0.95),0_55px_110px_rgba(2,11,30,0.95)] hover:border-yellow-400/80 hover:shadow-[0_45px_100px_rgba(234,179,8,0.25)] hover:scale-[1.015] transition-all duration-500 ease-out group cursor-pointer"
             >
               {/* Professional Country Flag Badge on Card Edge */}
               <div id="flag-yamal" className="absolute -top-3 -left-3 z-30 flex items-center gap-2 px-3.5 py-1.5 bg-[#030d26]/90 backdrop-blur-md rounded-full border border-yellow-400/40 shadow-[0_4px_16px_rgba(250,204,21,0.25)] hover:border-yellow-400/80 transition-all duration-300">
@@ -779,7 +962,7 @@ export default function App() {
                 </div>
    
                 {/* Huge typographic headline inside card */}
-                <h3 className="font-sans font-black text-2xl sm:text-3xl md:text-[32px] leading-[1.12] tracking-tight text-white uppercase mb-3">
+                <h3 className="font-display font-normal nextjs-text-hover text-2xl sm:text-3xl md:text-[32px] leading-[1.12] tracking-wide text-white uppercase mb-3">
                   The Golden <br />
                   <span className="text-yellow-400 font-extrabold">Wonderkid.</span>
                 </h3>
@@ -807,7 +990,7 @@ export default function App() {
               initialY={258}
               viewportMargin="-20px"
               duration={1.8}
-              className="flex flex-col md:flex-row items-center justify-between gap-0 relative bg-[#040f2b]/100 backdrop-blur-md rounded-2xl p-6 border border-yellow-400/40 shadow-[-10px_-20px_50px_rgba(2,11,30,0.95),0_55px_110px_rgba(2,11,30,0.95)] hover:border-yellow-400/80 hover:shadow-[0_45px_100px_rgba(234,179,8,0.25)] hover:scale-[1.015] transition-all duration-500 ease-out group cursor-pointer"
+              className="flex flex-col md:flex-row items-center justify-between gap-0 relative bg-[#040f2b]/100 backdrop-blur-md rounded-2xl nextjs-float p-6 border border-yellow-400/40 shadow-[-10px_-20px_50px_rgba(2,11,30,0.95),0_55px_110px_rgba(2,11,30,0.95)] hover:border-yellow-400/80 hover:shadow-[0_45px_100px_rgba(234,179,8,0.25)] hover:scale-[1.015] transition-all duration-500 ease-out group cursor-pointer"
             >
               {/* Professional Country Flag Badge on Card Edge */}
               <div id="flag-vini" className="absolute -top-3 -left-3 z-30 flex items-center gap-2 px-3.5 py-1.5 bg-[#030d26]/90 backdrop-blur-md rounded-full border border-yellow-400/40 shadow-[0_4px_16px_rgba(250,204,21,0.25)] hover:border-yellow-400/80 transition-all duration-300">
@@ -844,7 +1027,7 @@ export default function App() {
                 </div>
    
                 {/* Huge typographic headline inside card */}
-                <h3 className="font-sans font-black text-2xl sm:text-3xl md:text-[32px] leading-[1.12] tracking-tight text-white uppercase mb-3">
+                <h3 className="font-display font-normal nextjs-text-hover text-2xl sm:text-3xl md:text-[32px] leading-[1.12] tracking-wide text-white uppercase mb-3">
                   The Electric <br />
                   <span className="text-yellow-400 font-extrabold">Sensation.</span>
                 </h3>
@@ -872,7 +1055,7 @@ export default function App() {
               initialY={292}
               viewportMargin="-20px"
               duration={1.9}
-              className="flex flex-col md:flex-row items-center justify-between gap-0 relative bg-[#040f2b]/100 backdrop-blur-md rounded-2xl p-6 border border-yellow-400/40 shadow-[-10px_-20px_50px_rgba(2,11,30,0.95),0_55px_110px_rgba(2,11,30,0.95)] hover:border-yellow-400/80 hover:shadow-[0_45px_100px_rgba(234,179,8,0.25)] hover:scale-[1.015] transition-all duration-500 ease-out group cursor-pointer"
+              className="flex flex-col md:flex-row items-center justify-between gap-0 relative bg-[#040f2b]/100 backdrop-blur-md rounded-2xl nextjs-float p-6 border border-yellow-400/40 shadow-[-10px_-20px_50px_rgba(2,11,30,0.95),0_55px_110px_rgba(2,11,30,0.95)] hover:border-yellow-400/80 hover:shadow-[0_45px_100px_rgba(234,179,8,0.25)] hover:scale-[1.015] transition-all duration-500 ease-out group cursor-pointer"
             >
               {/* Professional Country Flag Badge on Card Edge */}
               <div id="flag-jude" className="absolute -top-3 -left-3 z-30 flex items-center gap-2 px-3.5 py-1.5 bg-[#030d26]/90 backdrop-blur-md rounded-full border border-yellow-400/40 shadow-[0_4px_16px_rgba(250,204,21,0.25)] hover:border-yellow-400/80 transition-all duration-300">
@@ -912,7 +1095,7 @@ export default function App() {
                 </div>
    
                 {/* Huge typographic headline inside card */}
-                <h3 className="font-sans font-black text-2xl sm:text-3xl md:text-[32px] leading-[1.12] tracking-tight text-white uppercase mb-3">
+                <h3 className="font-display font-normal nextjs-text-hover text-2xl sm:text-3xl md:text-[32px] leading-[1.12] tracking-wide text-white uppercase mb-3">
                   The Golden <br />
                   <span className="text-yellow-400 font-extrabold">General.</span>
                 </h3>
@@ -959,7 +1142,7 @@ export default function App() {
               <Trophy className="w-3.5 h-3.5 text-yellow-400 animate-pulse" />
               GLOBAL ARCHIVES
             </div>
-            <h2 className="gsap-fade-up-clip font-display font-black text-3xl sm:text-5xl md:text-[54px] leading-none tracking-tighter text-white uppercase">
+            <h2 className="gsap-fade-up-clip font-display font-black nextjs-text-hover text-3xl sm:text-5xl md:text-[54px] leading-none tracking-wide text-white uppercase">
               WORLD CUP <span className="text-yellow-400 font-extrabold">HOST NATIONS</span>
             </h2>
             <p className="gsap-stagger-letters font-mono text-slate-400/80 text-xs sm:text-xs tracking-[0.25em] uppercase mt-3">
@@ -980,6 +1163,9 @@ export default function App() {
 
         </div>
       </section>
+
+      {/* SECTION 4: FINAL ANIMATION SECTION */}
+      <FinalAnimationSection />
 
       {/* Custom Theme-Matched Cursor */}
       <div 
@@ -1020,3 +1206,5 @@ export default function App() {
     </div>
   );
 }
+
+

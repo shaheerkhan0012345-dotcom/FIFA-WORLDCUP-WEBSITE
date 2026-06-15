@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 
 interface IntroLoaderProps {
@@ -7,15 +7,50 @@ interface IntroLoaderProps {
 
 export default function IntroLoader({ onComplete }: IntroLoaderProps) {
   const [isExiting, setIsExiting] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Elegant fast loading timer (2.2 seconds) to reveal the app smoothly
+    // Extended timeout so the user can actually watch the animation properly
     const timer = setTimeout(() => {
       setIsExiting(true);
-    }, 2200);
+    }, 4500);
 
-    return () => clearTimeout(timer);
+    // Ultra-fast zero-lag Vanilla JS frame cycler
+    let frame = 1;
+    let rAFId: number;
+    let lastTime = performance.now();
+
+    const draw = (time: number) => {
+      // Slowed down significantly (120ms per frame = ~8 fps)
+      // This stops it from feeling like it "moves really fast" and lets them see it draw.
+      if (time - lastTime >= 120) { 
+        const container = containerRef.current;
+        if (container && container.children.length === 21) {
+          const images = container.children;
+          // Hide previous frame
+          (images[frame - 1] as HTMLElement).style.opacity = '0';
+          
+          // Advance frame
+          frame = frame >= 21 ? 1 : frame + 1;
+          
+          // Show next frame
+          (images[frame - 1] as HTMLElement).style.opacity = '1';
+        }
+        lastTime = time;
+      }
+      rAFId = requestAnimationFrame(draw);
+    };
+
+    rAFId = requestAnimationFrame(draw);
+
+    return () => {
+      clearTimeout(timer);
+      cancelAnimationFrame(rAFId);
+    };
   }, []);
+
+  // Pre-generate the 21 frame indices for the img tags
+  const frames = Array.from({ length: 21 }, (_, i) => i + 1);
 
   return (
     <AnimatePresence onExitComplete={onComplete}>
@@ -25,144 +60,64 @@ export default function IntroLoader({ onComplete }: IntroLoaderProps) {
           initial={{ opacity: 1 }}
           exit={{ 
             opacity: 0,
-            scale: 1.05,
-            filter: "blur(4px)",
-            transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] }
+            scale: 1.1,
+            filter: "blur(8px)",
+            transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] }
           }}
           className="fixed inset-0 w-full h-full z-[99999] bg-[#020715] flex flex-col items-center justify-center overflow-hidden select-none"
         >
-          {/* Extremely subtle ambient glow in the background */}
-          <div className="absolute w-[250px] h-[250px] bg-yellow-500/10 rounded-full blur-[80px]" />
+          {/* Subtle ambient golden glow behind the logo */}
+          <motion.div 
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0.8, 0.5] }}
+            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute w-[300px] h-[300px] bg-yellow-500/20 rounded-full blur-[100px]" 
+          />
 
-          {/* Centered Golden Logo Container */}
           <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ 
-              scale: [0.95, 1, 0.97, 1],
-              opacity: 1 
-            }}
+            initial={{ scale: 0.8, opacity: 0, y: 20 }}
+            animate={{ scale: [0.95, 1.05, 0.95], opacity: 1, y: 0 }}
             transition={{
-              scale: {
-                repeat: Infinity,
-                duration: 4,
-                ease: "easeInOut"
-              },
-              opacity: { duration: 0.6, ease: "easeOut" }
+              scale: { repeat: Infinity, duration: 4, ease: "easeInOut" },
+              opacity: { duration: 0.8, ease: "easeOut" },
+              y: { duration: 0.8, ease: "easeOut" }
             }}
-            className="w-48 h-64 flex items-center justify-center relative drop-shadow-[0_12px_44px_rgba(234,179,8,0.25)]"
+            className="relative flex items-center justify-center w-64 h-64 md:w-80 md:h-80"
           >
-            {/* Precise High-Quality SVG recreation of the official 2026 FIFA World Cup Blocky Emblem cutout */}
-            <svg 
-              className="w-full h-full" 
-              viewBox="0 0 200 240" 
-              fill="none" 
-              xmlns="http://www.w3.org/2000/svg"
+            {/* 
+              mix-blend-screen removes any native black backgrounds.
+              If the images are transparent PNGs, it perfectly layers them.
+              sepia + saturate + hue-rotate tints everything into beautiful glowing gold.
+              Removed invert() and contrast() which were artificially creating the 'card' borders!
+            */}
+            <div 
+              ref={containerRef}
+              className="w-full h-full mix-blend-screen relative"
+              style={{
+                filter: "sepia(100%) saturate(500%) hue-rotate(5deg) brightness(1.2)"
+              }}
             >
-              <defs>
-                {/* Gold metallic gradient matched perfectly to the website color theme */}
-                <linearGradient id="loader-gold-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#fef08a" />
-                  <stop offset="50%" stopColor="#eab308" />
-                  <stop offset="100%" stopColor="#ca8a04" />
-                </linearGradient>
-
-                {/* Mask for cutting out the precise white/transparent silhouette features of the Trophy and FIFA text */}
-                <mask id="official-logo-cutout-mask">
-                  {/* Base white block to show all content through */}
-                  <rect x="0" y="0" width="200" height="240" fill="#ffffff" />
-                  
-                  {/* negative space cutout of World Cup Trophy */}
-                  {/* Sphere at the top of the trophy */}
-                  <circle cx="100" cy="85" r="21" fill="#000000" />
-                  
-                  {/* Elegant curved stem silhouette of the trophy */}
-                  <path 
-                    d="M 85,85 
-                       C 85,110 90,128 92,142 
-                       C 95,153 89,173 80,186 
-                       C 73,197 73,201 100,201 
-                       C 127,201 127,197 119,186 
-                       C 110,173 105,153 108,142 
-                       C 110,128 115,110 115,85 
-                       Z" 
-                    fill="#000000" 
-                  />
-                  {/* Standard trophy base tiers */}
-                  <path d="M 81,198 H 119 V 213 H 81 Z" fill="#000000" />
-                  
-                  {/* FIFA negative space text cutout centered below the trophy stem within bottom block of "6" */}
-                  <text 
-                    x="100.5" 
-                    y="226" 
-                    fill="#000000" 
-                    fontSize="13" 
-                    fontWeight="1000" 
-                    letterSpacing="0.8" 
-                    textAnchor="middle" 
-                    style={{ fontFamily: "Impact, Arial Black, sans-serif" }}
-                  >
-                    FIFA
-                  </text>
-                </mask>
-              </defs>
-
-              {/* Main Blocky '2' and '6' shapes drawn as per user picture with rounded outer bounds and sharp inner cuts */}
-              <g mask="url(#official-logo-cutout-mask)">
-                {/* 
-                  Upper Block '2'
-                  - Sharp inner cuts, thick geometric blocks
-                  - Beautiful rounded outer corners (e.g. top-left and top-right)
-                */}
-                <path 
-                  d="M 20,44 
-                     C 20,24 40,16 60,16 
-                     L 140,16 
-                     C 160,16 180,24 180,44 
-                     L 180,118 
-                     L 82,118 
-                     C 82,118 82,78 82,78 
-                     L 138,78 
-                     L 138,50 
-                     L 62,50 
-                     L 62,118 
-                     L 20,118 
-                     Z" 
-                  fill="url(#loader-gold-gradient)" 
+              {frames.map((f) => (
+                <img 
+                  key={f}
+                  src={`/fifa-loader/ezgif-frame-${f.toString().padStart(3, '0')}.png`}
+                  alt=""
+                  className="absolute inset-0 w-full h-full object-contain"
+                  style={{ opacity: f === 1 ? 1 : 0, transition: 'none' }}
                 />
-                
-                {/* 
-                  Lower Block '6'
-                  - Thick geometric block forms a solid backdrop matching the image format
-                  - Beautiful rounded outer corners (e.g. bottom-left and bottom-right)
-                */}
-                <path 
-                  d="M 20,126 
-                     L 180,126 
-                     L 180,160 
-                     L 78,160 
-                     C 78,160 78,192 78,192 
-                     L 180,192 
-                     L 180,214 
-                     C 180,224 170,234 154,234 
-                     L 46,234 
-                     C 30,234 20,224 20,214 
-                     Z" 
-                  fill="url(#loader-gold-gradient)" 
-                />
-              </g>
-
-              {/* Subtle TM trademark marker on bottom-right corner as shown in picture */}
-              <text 
-                x="184" 
-                y="234" 
-                fill="#fbcfe8" 
-                opacity="0.35"
-                fontSize="5" 
-                fontWeight="bold"
-              >
-                TM
-              </text>
-            </svg>
+              ))}
+            </div>
+            
+            {/* Shimmer effect overlay */}
+            <motion.div 
+              animate={{ backgroundPosition: ["200% center", "-200% center"] }}
+              transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+              className="absolute inset-0 pointer-events-none mix-blend-overlay"
+              style={{
+                backgroundImage: "linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.2) 50%, transparent 100%)",
+                backgroundSize: "200% 100%"
+              }}
+            />
           </motion.div>
         </motion.div>
       )}

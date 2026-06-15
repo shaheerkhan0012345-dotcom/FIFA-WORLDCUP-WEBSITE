@@ -1,9 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:ital,wght@0,100..900;1,100..900&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
 @import "tailwindcss";
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Montserrat", sans-serif;
+  --font-display: "Bebas Neue", "Montserrat", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
   --color-navy-dark: #081229;
@@ -62,5 +62,39 @@ body {
 .text-stroke-custom {
   color: transparent;
   -webkit-text-stroke: 1px rgba(255, 255, 255, 0.03);
+}
+
+
+/* Next.js Inspired Hover Effects & Animations */
+.nextjs-text-hover {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  
+  cursor: pointer;
+}
+.nextjs-text-hover:hover {
+  background: linear-gradient(110deg, #fef08a 0%, #eab308 25%, #854d0e 50%, #fef08a 75%, #eab308 100%);
+  background-size: 200% auto;
+  color: transparent;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: shine 2s linear infinite;
+  transform: scale(1.02) translateY(-2px);
+  text-shadow: 0 10px 30px rgba(234, 179, 8, 0.4);
+}
+
+.nextjs-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+}
+
+@keyframes shine {
+  to {
+    background-position: 200% center;
+  }
 }
 
