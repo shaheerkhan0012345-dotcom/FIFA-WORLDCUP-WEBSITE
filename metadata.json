@@ -1,0 +1,6 @@
+{
+  "name": "Soccer Club Portal",
+  "description": "A premium, broadcast-grade soccer club countdown page featuring a clean white minimalist layout, heavy orange display typography, athletic mid-air action player, and a fully functional countdown LCD timer.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

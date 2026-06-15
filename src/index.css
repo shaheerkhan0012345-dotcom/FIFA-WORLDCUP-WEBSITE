@@ -1,0 +1,66 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Montserrat", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --color-navy-dark: #081229;
+  --color-navy-deep: #050a17;
+  --color-navy-medium: #0d1e43;
+  --color-navy-light: #162c5e;
+  --color-gold-trophy: #D4AF37;
+  --color-gold-bright: #F4C430;
+  --color-gold-cream: #FFF7DB;
+  
+  --animate-pulse-slow: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-scanline: scanline 6s linear infinite;
+  --animate-glow: glow 2s ease-in-out infinite alternate;
+}
+
+@keyframes scanline {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
+
+@keyframes glow {
+  0% { box-shadow: 0 0 10px rgba(212, 175, 55, 0.2); }
+  100% { box-shadow: 0 0 25px rgba(212, 175, 55, 0.6); }
+}
+
+/* Custom styles for professional broadcast design elements */
+@media (pointer: fine) {
+  html, body, a, button, iframe, [role="button"], select, input, textarea {
+    cursor: none !important;
+  }
+}
+
+body {
+  background-color: #0b111e;
+  font-family: var(--font-sans);
+  color: #f1f5f9;
+  overflow-x: hidden;
+}
+
+/* Scrollbar customization */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #070c14;
+}
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #ef4444;
+}
+
+/* Custom text outline or backdrop for absolute background text */
+.text-stroke-custom {
+  color: transparent;
+  -webkit-text-stroke: 1px rgba(255, 255, 255, 0.03);
+}
+
